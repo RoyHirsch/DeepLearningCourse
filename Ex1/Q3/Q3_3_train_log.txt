@@ -1,0 +1,163 @@
+==> Epoch num 0 : time 4.4 s
+train loss : 0.0471
+test loss : 0.0152
+
+==> Epoch num 10 : time 3.5 s
+train loss : 0.0097
+test loss : 0.0099
+
+==> Epoch num 20 : time 3.6 s
+train loss : 0.0077
+test loss : 0.0082
+
+==> Epoch num 30 : time 3.6 s
+train loss : 0.0066
+test loss : 0.0073
+
+==> Epoch num 40 : time 3.7 s
+train loss : 0.0058
+test loss : 0.0068
+
+==> Epoch num 50 : time 3.7 s
+train loss : 0.0053
+test loss : 0.0062
+
+==> Epoch num 60 : time 3.8 s
+train loss : 0.0048
+test loss : 0.0057
+
+==> Epoch num 70 : time 3.7 s
+train loss : 0.0045
+test loss : 0.0054
+
+==> Epoch num 80 : time 4.8 s
+train loss : 0.0042
+test loss : 0.0051
+
+==> Epoch num 90 : time 3.8 s
+train loss : 0.0039
+test loss : 0.0048
+
+==> Epoch num 100 : time 3.7 s
+train loss : 0.0037
+test loss : 0.0046
+
+==> Epoch num 110 : time 4.0 s
+train loss : 0.0035
+test loss : 0.0044
+
+==> Epoch num 120 : time 4.1 s
+train loss : 0.0033
+test loss : 0.0042
+
+==> Epoch num 130 : time 3.8 s
+train loss : 0.0032
+test loss : 0.0042
+
+==> Epoch num 140 : time 4.1 s
+train loss : 0.0030
+test loss : 0.0039
+
+==> Epoch num 150 : time 4.1 s
+train loss : 0.0029
+test loss : 0.0038
+
+==> Epoch num 160 : time 3.6 s
+train loss : 0.0028
+test loss : 0.0037
+
+==> Epoch num 170 : time 3.7 s
+train loss : 0.0026
+test loss : 0.0036
+
+==> Epoch num 180 : time 4.1 s
+train loss : 0.0026
+test loss : 0.0035
+
+==> Epoch num 190 : time 3.7 s
+train loss : 0.0025
+test loss : 0.0034
+
+==> Epoch num 200 : time 3.6 s
+train loss : 0.0024
+test loss : 0.0033
+
+==> Epoch num 210 : time 3.7 s
+train loss : 0.0023
+test loss : 0.0032
+
+==> Epoch num 220 : time 4.0 s
+train loss : 0.0022
+test loss : 0.0032
+
+==> Epoch num 230 : time 3.9 s
+train loss : 0.0022
+test loss : 0.0031
+
+==> Epoch num 240 : time 3.6 s
+train loss : 0.0021
+test loss : 0.0030
+
+==> Epoch num 250 : time 3.7 s
+train loss : 0.0021
+test loss : 0.0030
+
+==> Epoch num 260 : time 3.6 s
+train loss : 0.0020
+test loss : 0.0031
+
+==> Epoch num 270 : time 3.6 s
+train loss : 0.0020
+test loss : 0.0029
+
+==> Epoch num 280 : time 3.7 s
+train loss : 0.0019
+test loss : 0.0029
+
+==> Epoch num 290 : time 3.6 s
+train loss : 0.0019
+test loss : 0.0029
+
+==> Epoch num 300 : time 3.5 s
+train loss : 0.0019
+test loss : 0.0028
+
+==> Epoch num 310 : time 4.2 s
+train loss : 0.0018
+test loss : 0.0028
+
+==> Epoch num 320 : time 3.7 s
+train loss : 0.0018
+test loss : 0.0028
+
+==> Epoch num 330 : time 3.7 s
+train loss : 0.0017
+test loss : 0.0027
+
+==> Epoch num 340 : time 3.6 s
+train loss : 0.0017
+test loss : 0.0027
+
+==> Epoch num 350 : time 3.6 s
+train loss : 0.0017
+test loss : 0.0027
+
+==> Epoch num 360 : time 3.6 s
+train loss : 0.0017
+test loss : 0.0027
+
+==> Epoch num 370 : time 4.1 s
+train loss : 0.0016
+test loss : 0.0026
+
+==> Epoch num 380 : time 3.7 s
+train loss : 0.0017
+test loss : 0.0027
+
+==> Epoch num 390 : time 3.7 s
+train loss : 0.0016
+test loss : 0.0027
+
+== Final epoch: ==
+train loss : 0.0015
+test loss : 0.0026

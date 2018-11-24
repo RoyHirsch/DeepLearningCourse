@@ -12,7 +12,8 @@ valid_samples = 2140
 test_par = 0.2
 n_epoches = 400
 batch_size = 128
-# TODO local_path_to_training.csv file
+
+# Local path to CSV file
 csv_path = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex1/EX1/Q3/training.csv'
 
 class FaceDataLoader(Dataset):
@@ -26,19 +27,19 @@ class FaceDataLoader(Dataset):
         self.raw_data = pd.read_csv(csv_file).dropna()
         self.transform = transform
         self.col_names = ['left_eye_center_x', 'left_eye_center_y', 'right_eye_center_x',
-		       'right_eye_center_y', 'left_eye_inner_corner_x',
-		       'left_eye_inner_corner_y', 'left_eye_outer_corner_x',
-		       'left_eye_outer_corner_y', 'right_eye_inner_corner_x',
-		       'right_eye_inner_corner_y', 'right_eye_outer_corner_x',
-		       'right_eye_outer_corner_y', 'left_eyebrow_inner_end_x',
-		       'left_eyebrow_inner_end_y', 'left_eyebrow_outer_end_x',
-		       'left_eyebrow_outer_end_y', 'right_eyebrow_inner_end_x',
-		       'right_eyebrow_inner_end_y', 'right_eyebrow_outer_end_x',
-		       'right_eyebrow_outer_end_y', 'nose_tip_x', 'nose_tip_y',
-		       'mouth_left_corner_x', 'mouth_left_corner_y', 'mouth_right_corner_x',
-		       'mouth_right_corner_y', 'mouth_center_top_lip_x',
-		       'mouth_center_top_lip_y', 'mouth_center_bottom_lip_x',
-		       'mouth_center_bottom_lip_y', 'Image']
+                          'right_eye_center_y', 'left_eye_inner_corner_x',
+                          'left_eye_inner_corner_y', 'left_eye_outer_corner_x',
+                          'left_eye_outer_corner_y', 'right_eye_inner_corner_x',
+                          'right_eye_inner_corner_y', 'right_eye_outer_corner_x',
+                          'right_eye_outer_corner_y', 'left_eyebrow_inner_end_x',
+                          'left_eyebrow_inner_end_y', 'left_eyebrow_outer_end_x',
+                          'left_eyebrow_outer_end_y', 'right_eyebrow_inner_end_x',
+                          'right_eyebrow_inner_end_y', 'right_eyebrow_outer_end_x',
+                          'right_eyebrow_outer_end_y', 'nose_tip_x', 'nose_tip_y',
+                          'mouth_left_corner_x', 'mouth_left_corner_y', 'mouth_right_corner_x',
+                          'mouth_right_corner_y', 'mouth_center_top_lip_x',
+                          'mouth_center_top_lip_y', 'mouth_center_bottom_lip_x',
+                          'mouth_center_bottom_lip_y', 'Image']
         self.data = self.raw_data[self.col_names[-1]].iloc[:valid_samples].values
         self.labels = self.raw_data[self.col_names[:-1]].iloc[:valid_samples].values
 
@@ -57,6 +58,7 @@ class FaceDataLoader(Dataset):
 
         return torch.tensor(norm_sample).float(), torch.tensor(norm_labels).float()
 
+
 class FcNet(nn.Module):
     def __init__(self):
         super(FcNet, self).__init__()
@@ -64,15 +66,16 @@ class FcNet(nn.Module):
         self.fc2 = nn.Linear(100, 30)
 
     def forward(self, x):
+        x = x
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
+
 
 net = FcNet()
 criterion = nn.MSELoss()
 # optimizer = torch.optim.Adam(net.parameters(), lr=0.01)
 optimizer = torch.optim.SGD(net.parameters(), lr=0.01, momentum=0.9, nesterov=True)
-
 
 # Creating data indices for training and test splits:
 test_size = int(test_par * valid_samples)
@@ -86,40 +89,58 @@ test_sampler = SubsetRandomSampler(test_ind)
 face_dataset = FaceDataLoader(csv_file=csv_path)
 
 # Use torch.utils.data.DataLoader iterator class as a wrapper for convenient batching and shuffling
-train_loader = DataLoader(face_dataset, batch_size=batch_size, num_workers=4, sampler=train_sampler)
-test_loader = DataLoader(face_dataset, batch_size=test_size, num_workers=4, sampler=test_sampler)
+train_loader = DataLoader(face_dataset, batch_size=batch_size, num_workers=0, sampler=train_sampler)
+test_loader = DataLoader(face_dataset, batch_size=test_size, num_workers=0, sampler=test_sampler)
 
 # Main optimization loop:
 train_loss_arr = []
 test_loss_arr = []
+print('Start training')
 for epoch in range(n_epoches):
-    start = time.time()
-    for i, data in enumerate(train_loader, 0):
-        inputs, labels = data
+	start = time.time()
+	epoch_loss_arr = []
+	for i, data in enumerate(train_loader, 0):
+		inputs, labels = data
 
-        optimizer.zero_grad()
+		optimizer.zero_grad()
 
-        outputs = net(inputs)
-        train_loss = criterion(outputs, labels)
-        train_loss.backward()
-        optimizer.step()
+		outputs = net(inputs)
+		train_loss = criterion(outputs, labels)
+		train_loss.backward()
+		optimizer.step()
 
-    # Test the model
-    for data in test_loader:
-        inputs, labels = data
+		epoch_loss_arr.append(train_loss.item())
 
-    outputs = net(inputs)
-    test_loss = (criterion(outputs, labels))
+	# Calculate the train loss as a mean of all the batches losses
+	train_loss = np.mean(epoch_loss_arr)
 
-    end = time.time()
-    if epoch % 10 == 0:
-        print('\n==> Epoch num {} : time {} s'.format(epoch, round(end-start, 1)))
-        print('train loss : {0:3.4f}'.format(train_loss))
-        print('test loss : {0:3.4f}'.format(test_loss))
+	# Test the model
+	for data in test_loader:
+		inputs, labels = data
 
-    # Document the results
-    train_loss_arr.append(train_loss)
-    test_loss_arr.append(test_loss)
+	outputs = net(inputs)
+	test_loss = (criterion(outputs, labels))
+
+	end = time.time()
+	if epoch % 10 == 0:
+		print('\n==> Epoch num {} : time {} s'.format(epoch, round(end-start, 1)))
+		print('train loss : {0:3.4f}'.format(train_loss))
+		print('test loss : {0:3.4f}'.format(test_loss))
+
+	# Document the results
+	train_loss_arr.append(train_loss)
+	test_loss_arr.append(test_loss)
+
+# Final loss report
+epoch_loss_arr = []
+for data in train_loader:
+	inputs, labels = data
+	outputs = net(inputs)
+	train_loss = (criterion(outputs, labels))
+	epoch_loss_arr.append(train_loss.item())
+
+train_loss = np.mean(epoch_loss_arr)
+print('\n== Final epoch: ==\ntrain loss : {0:3.4f}\ntest loss : {1:3.4f}'.format(train_loss, test_loss))
 
 # Plot the loss per epoch
 plt.figure()
@@ -132,4 +153,3 @@ plt.yscale("log")
 plt.xlabel('# Epoch')
 plt.ylabel('Loss')
 plt.show()
-

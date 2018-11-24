@@ -1,0 +1,14 @@
+Epoch: 0 , Loss: 0.521348
+Epoch: 500 , Loss: 0.291923
+Epoch: 1000 , Loss: 0.281731
+Epoch: 1500 , Loss: 0.260436
+Epoch: 2000 , Loss: 0.224167
+Epoch: 2500 , Loss: 0.075425
+Epoch: 3000 , Loss: 0.001868
+Epoch: 3500 , Loss: 0.000000
+Epoch: 4000 , Loss: 0.000000
+Epoch: 4500 , Loss: 0.000000
+Sample: [0,0] Target: [0] Predicted: [0.0]
+Sample: [0,1] Target: [1] Predicted: [1.0]
+Sample: [1,0] Target: [1] Predicted: [1.0]
+Sample: [1,1] Target: [0] Predicted: [0.0]

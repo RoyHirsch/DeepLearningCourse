@@ -1,0 +1,41 @@
+C:\Users\nimro\PycharmProjects\first_delete\venv\Scripts\python.exe "C:/Users/nimro/Google Drive/???? ???/??????/Deep Learning - wolf/exercises/q3_local.py"
+
+==> Epoch num 0 : time 50.7 s
+train loss : 0.0040
+test loss : 0.0026
+
+==> Epoch num 10 : time 30.2 s
+train loss : 0.0009
+test loss : 0.0013
+
+==> Epoch num 20 : time 31.7 s
+train loss : 0.0009
+test loss : 0.0006
+
+==> Epoch num 30 : time 32.2 s
+train loss : 0.0004
+test loss : 0.0012
+
+==> Epoch num 40 : time 32.3 s
+train loss : 0.0004
+test loss : 0.0005
+
+==> Epoch num 50 : time 32.0 s
+train loss : 0.0002
+test loss : 0.0007
+
+==> Epoch num 60 : time 32.1 s
+train loss : 0.0001
+test loss : 0.0008
+
+==> Epoch num 70 : time 31.9 s
+train loss : 0.0001
+test loss : 0.0006
+
+==> Epoch num 80 : time 32.2 s
+train loss : 0.0001
+test loss : 0.0019
+
+==> Epoch num 90 : time 31.8 s
+train loss : 0.0001
+test loss : 0.0007
