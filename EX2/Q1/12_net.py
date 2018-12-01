@@ -9,6 +9,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 import torch.nn as nn
 import torch.nn.functional as F
 from itertools import cycle
+import matplotlib.pyplot as plt
 
 
 ''' ###################################### PARAMETERS ###################################### '''
@@ -18,9 +19,9 @@ filename = 'aflw_12.t7'
 # pascal_path = 'C:/Users/dorim/Desktop/DOR/TAU uni/Msc/DL/EX2/EX2_data/VOCdevkit/VOC2007'
 pascal_path = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/VOCdevkit/VOC2007'
 test_par = 0.3
-batch_size_pos = 10
-batch_size_neg = 40
-n_epoches = 40
+batch_size_pos = 32
+batch_size_neg = 96
+n_epoches = 1001
 
 ''' ###################################### CLASSES ###################################### '''
 class Aflw_loader(Dataset):
@@ -28,11 +29,7 @@ class Aflw_loader(Dataset):
     'a labels vector of size num_sampels  and samples a tensor of each'
     def __init__(self, path, filename):
         self.rawdata = torchfile.load(os.path.join(path, filename), force_8bytes_long=True)
-        # shape: (24385, 3, 12, 12)
-        # self.rawdata between [0, 1]
         self.rawdata = self.rawdata.values()
-        # shape: (24385, 12, 12, 3)
-        # self.rawdata = np.swapaxes(self.rawdata, 1, 3)
         self.labels = np.ones((np.shape(self.rawdata)[0], 1))
 
     def __len__(self):
@@ -68,7 +65,6 @@ class Net(nn.Module):
         # [3,3] kernel ,output chanel: 16
         self.conv = nn.Conv2d(3, 16, 3)
         self.pool = nn.MaxPool2d((3, 3), stride=2)
-        # TODO: validate sizes (Roy)
         self.fc1 = nn.Linear(256, 16)
         self.fc2 = nn.Linear(16, 2)
 
@@ -79,7 +75,7 @@ class Net(nn.Module):
         x = x.view(-1, 256)
 
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = self.fc2(x)
         return x
 
 ''' ###################################### FUNCTIONS ###################################### '''
@@ -107,9 +103,13 @@ def load_pascal_to_numpy(path):
     labels = np.zeros((num_images, 1))
     return pascal_as_list, labels
 
-# gets dataset size and test parcentage generates two samplers for the indices
 def create_sampler_for_train_n_test(size_dataset, test_par):
-    # Creating data indices for training and test splits:
+    '''
+    Creating data indices for training and test splits:
+    :param size_dataset: (int) - num of samples in the dataset
+    :param test_par: (float) - parcentage of data to extract for test
+    :return: train_sampler, test_sampler
+    '''
     ind = list(range(size_dataset))
 
     test_size = int(test_par * size_dataset)
@@ -122,18 +122,27 @@ def create_sampler_for_train_n_test(size_dataset, test_par):
     return train_sampler, test_sampler
 
 def permutate_input_n_labels(pos_inputs, pos_labels, neg_inputs, neg_labels):
+    '''
+    Gets positive and negative data and label and shuffle them,
+    :param pos_inputs: (torch.tensor)
+    :param pos_labels: (torch.tensor)
+    :param neg_inputs: (torch.tensor)
+    :param neg_labels: (torch.tensor)
+    :return: shuffled data and labels
+    '''
     merged_inputs = np.vstack((pos_inputs, neg_inputs))
     merged_labels = np.vstack((pos_labels, neg_labels))
     inds = list(range(len(merged_labels)))
     np.random.shuffle(inds)
 
-    # merged_labels = np.hstack(((merged_inputs, np.bitwise_no(merged_inputs)))
-    return torch.tensor(merged_inputs[inds, :, :, :]).float(), torch.tensor(merged_labels[inds, :]).long()
+    return torch.tensor(merged_inputs[inds, :, :, :]).float(), torch.tensor(merged_labels[inds, :]).flatten().long()
+
+''' ###################################### MAIN ###################################### '''
 
 # Create the date loaders
-positive_aflw_12_net = Aflw_loader(path = aflw_path, filename = filename)
+positive_aflw_12_net = Aflw_loader(path=aflw_path, filename=filename)
 pascal_images, pascal_labels = load_pascal_to_numpy(pascal_path)
-negative_pascal_12_net = Pascal_loader(full_images = pascal_images, labels = pascal_labels)
+negative_pascal_12_net = Pascal_loader(full_images=pascal_images, labels = pascal_labels)
 
 pos_train_sampler, pos_test_sampler = create_sampler_for_train_n_test(len(positive_aflw_12_net.rawdata), test_par)
 neg_train_sampler, neg_test_sampler = create_sampler_for_train_n_test(len(negative_pascal_12_net.data), test_par)
@@ -162,8 +171,7 @@ for epoch in range(n_epoches):
         optimizer.zero_grad()
 
         outputs = net(inputs)
-        # TODO better solution to the LongTensor error (Roy)
-        train_loss_tmp = criterion(outputs, torch.max(labels, 1)[0].long())
+        train_loss_tmp = criterion(outputs, labels)
         train_loss_tmp.backward()
         optimizer.step()
         train_loss_arr.append(train_loss_tmp.item())
@@ -177,7 +185,7 @@ for epoch in range(n_epoches):
         (pos_inputs, pos_labels), (neg_inputs, neg_labels) = data
         inputs, labels = permutate_input_n_labels(pos_inputs, pos_labels, neg_inputs, neg_labels)
         outputs = net(inputs)
-        test_loss_t = criterion(outputs, torch.max(labels, 1)[0].long())
+        test_loss_t = criterion(outputs, labels)
         test_loss_arr.append(test_loss_t.item())
 
     test_loss_epoch = np.mean(test_loss_arr)
@@ -187,16 +195,16 @@ for epoch in range(n_epoches):
     print('train loss : {0:3.4f}'.format(train_loss_epoch))
     print('test loss : {0:3.4f}'.format(test_loss_epoch))
 
-print('r')
+# Save state_dict
+torch.save(net.state_dict(), 'model_params_test_loss_{}.pt'.format(round(test_loss_epoch,4)))
 
 # Plot the loss per epoch
-# import matplotlib.pyplot as plt
-# plt.figure()
-# plt.plot(train_loss_total, '-', color='b')
-# plt.plot(test_loss_total, '--', color='r')
-# plt.legend(['train_loss', 'test_loss'])
-# plt.title('Loss per epoch graph')
-# plt.xlabel('# Epoch')
-# plt.ylabel('Loss')
-# plt.show()
+plt.figure()
+plt.plot(train_loss_total, '-', color='b')
+plt.plot(test_loss_total, '--', color='r')
+plt.legend(['train_loss', 'test_loss'])
+plt.title('Loss per epoch graph')
+plt.xlabel('# Epoch')
+plt.ylabel('Loss')
+plt.show()
 
