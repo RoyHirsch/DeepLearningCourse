@@ -22,9 +22,7 @@ class Net(nn.Module):
 
     def forward(self, x):
         x = self.conv(x)
-        x = self.pool(F.relu(x))
-
-        # x = x.view(-1, 256)
+        x = self.pool(F.relu(x))        # x.shape = (128, 16, 4, 4)
 
         x = F.relu(self.conv2(x))
         x = self.conv3(x)
@@ -169,7 +167,13 @@ FDDB_IMAGES_ROOT = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX
 # Load the parameters of the FC network
 fc_state_dict = torch.load(FC_STATE_DICT_PATH)
 
-# Convert state_dict of the original FC NN into FCN
+# Convert state_d   ict of the original FC NN into FCN
+'''
+	How the FC-CNN was calculated ?
+	after pool layer -x.shape: (128, 16, 4, 4)
+	therefore if we chanel size to be 16 we need conv kernel of [output_size ,input_size=4,input_size=4]
+	see: http://cs231n.github.io/convolutional-networks/#convert
+'''
 fcn_state_dict = fc_state_dict.copy()
 fcn_state_dict['conv2.weight'] = fcn_state_dict.pop('fc1.weight').view(16, 16, 4, 4)
 fcn_state_dict['conv2.bias'] = fcn_state_dict.pop('fc1.bias')
