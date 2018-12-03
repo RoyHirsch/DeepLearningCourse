@@ -38,7 +38,7 @@ def square_to_elipse(square):
 	'''
 	pass
 
-def scores_to_boxes(score_per_patch, thres_percentile):
+def scores_to_boxes(score_per_patch, thres_percentile, h_input, w_input):
 	'''
 	Converts output scors from the NN to rects.
 	Convert each cordinate from: [x, y, h, w] to [x1, y1, x2, y2]
@@ -52,22 +52,33 @@ def scores_to_boxes(score_per_patch, thres_percentile):
 	# filer by score bigger then percentile
 	m = np.percentile(score_per_patch.flatten(), thres_percentile)
 
-	rf = 12
-	k = 0
-	for i in range(w):
-		for j in range(h):
-			if score_per_patch[j, i] >= m:
-				x1 = i
-				y1 = j
-				x2 = x1 + rf if (x1 + rf) < w else w
-				y2 = y1 + rf if (y1 + rf) < h else h
-				boxes[k, :] = [x1, y1, x2, y2, score_per_patch[j, i]]
-				k += 1
+	# Create array that holds the two points represent rectangle - top left and bottom right
+	# Assume the location (i, j) in the output map is the top left corner at the input image at: (2i, 2j)
+	# np.where returns a tupal of indexes 0 dim ix the x ind and dim 1 is y ind
+	# top_left_ind.shape = [2, num_of_points]
 
-	# remove zero rows from boxes
-	return boxes[~np.all(boxes == 0, axis=1)]
+	# Assume (i, j) is top left corner
 
-def non_maxima_supration(score_per_patch, thres_percentile, thres=0.5):
+	top_left_ind = np.array(np.where(score_per_patch >= m))
+	top_left_ind = top_left_ind * 2
+	bottom_right_ind = top_left_ind + np.full(top_left_ind.shape, 12)
+	filter_scores = score_per_patch[np.where(score_per_patch >= m)]
+	boxes = np.column_stack((top_left_ind.T, bottom_right_ind.T, filter_scores))
+
+	# Assume (i, j) is bottom left corner
+	
+	# bottom_left_ind = np.array(np.where(score_per_patch >= m)) * 2
+	# bottom_right_ind = np.copy(bottom_left_ind)
+	# bottom_right_ind[0] = bottom_left_ind[0] + np.full(bottom_left_ind[0].shape ,12)
+	#
+	# top_left_ind = np.copy(bottom_left_ind)
+	# top_left_ind[1] = bottom_left_ind[1] + np.full(bottom_left_ind[1].shape ,-12)
+	# filter_scores = score_per_patch[np.where(score_per_patch >= m)]
+	# boxes = np.column_stack((top_left_ind.T, bottom_right_ind.T, filter_scores))
+
+	return boxes
+
+def non_maxima_supration(boxes, thres=0.5):
 	'''
 	The output scores image of the backbone NN
 	:param score_per_patch: (np.array)
@@ -75,7 +86,6 @@ def non_maxima_supration(score_per_patch, thres_percentile, thres=0.5):
 	:param thres: threshold for IOU of overlaping rects
 	:return:
 	'''
-	boxes = scores_to_boxes(score_per_patch, scale)
 	# initialize the list of picked indexes
 	pick = []
 
@@ -84,6 +94,7 @@ def non_maxima_supration(score_per_patch, thres_percentile, thres=0.5):
 	y1 = boxes[:, 1]
 	x2 = boxes[:, 2]
 	y2 = boxes[:, 3]
+	scores = boxes[:, 4]
 
 	# compute the area of the bounding boxes and sort the bounding
 	# boxes by the bottom-right y-coordinate of the bounding box
@@ -167,7 +178,7 @@ FDDB_IMAGES_ROOT = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX
 # Load the parameters of the FC network
 fc_state_dict = torch.load(FC_STATE_DICT_PATH)
 
-# Convert state_d   ict of the original FC NN into FCN
+# Convert state_dict of the original FC NN into FCN
 '''
 	How the FC-CNN was calculated ?
 	after pool layer -x.shape: (128, 16, 4, 4)
@@ -193,26 +204,30 @@ with open(FDDB_IMAGE_ORDER) as images_file:
 for im_name in images_list:
 	full_im_path = os.path.join(FDDB_IMAGES_ROOT, im_name + '.jpg')
 	im = Image.open(full_im_path)
+	h_org, w_org = im.size
 
 	# Pre-process the image
 	# TODO: not sure about the resize (Roy)
-	scale = 8
+	scale = 16
 	im = transforms.Resize(im.size[1]/scale)(im)
-	h_org, w_org = im.size
-	im_tensor = transforms.ToTensor()(im).view([1, 3, w_org, h_org])
+	h_input, w_input = im.size
+	im_tensor = transforms.ToTensor()(im).view([1, 3, w_input, h_input])
 
 	# Evaluate the FCN
-	output = fcn_net(im_tensor)
+	sigmoid = nn.Sigmoid()
+	output = sigmoid(fcn_net(im_tensor))
 
 	# The score in each patch represent the score to find a face in this patch
 	# class 0 stands for TRUE
 	# Each neuron in score_per_patch has receptive field of 12x12 of original image
-	score_per_patch = np.squeeze(output.detach().numpy())[0, :, :]
-	h, w = score_per_patch.shape
-	rects = non_maxima_supration(score_per_patch, 90, thres=0.5)
+	scores = np.squeeze(output.detach().numpy())[1, :, :]
+	h, w = scores.shape
+
+	rects = scores_to_boxes(scores, 80, h_input, w_input)
+	filtered_rects = non_maxima_supration(rects, thres=0.5)
 
 	# Helper function
-	drawRects(im, rects)
+	drawRects(im, filtered_rects)
 
 	# TODO missing: (Roy)
 	#  - multiple scales
