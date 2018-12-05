@@ -18,10 +18,10 @@ aflw_path = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX2_data/
 filename = 'aflw_12.t7'
 # pascal_path = 'C:/Users/dorim/Desktop/DOR/TAU uni/Msc/DL/EX2/EX2_data/VOCdevkit/VOC2007'
 pascal_path = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/VOCdevkit/VOC2007'
-test_par = 0.3
+test_par = 0.1
 batch_size_pos = 32
 batch_size_neg = 96
-n_epoches = 1001
+n_epoches = 200
 
 ''' ###################################### CLASSES ###################################### '''
 class Aflw_loader(Dataset):
@@ -181,7 +181,7 @@ for epoch in range(n_epoches):
 
     # Test the model
     test_loss_arr = []
-    for data in zip(pos_train_loader, cycle(neg_train_loader)):
+    for data in zip(pos_test_loader, cycle(neg_test_loader)):
         (pos_inputs, pos_labels), (neg_inputs, neg_labels) = data
         inputs, labels = permutate_input_n_labels(pos_inputs, pos_labels, neg_inputs, neg_labels)
         outputs = net(inputs)

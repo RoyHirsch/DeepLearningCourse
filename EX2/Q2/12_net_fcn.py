@@ -8,6 +8,7 @@ import torch.nn.functional as F
 import PIL
 import matplotlib.pyplot as plt
 import cv2 as cv2
+import math
 
 ''' ###################################### CLASSES ###################################### '''
 
@@ -30,13 +31,28 @@ class Net(nn.Module):
 
 ''' ###################################### FUNCTIONS ###################################### '''
 
-def square_to_elipse(square):
+def rects_to_elipses(rects):
 	'''
 
-	:param square:
-	:return: <major_axis_radius minor_axis_radius angle center_x center_y 1>.
+	Transforms the rect to elipse coordinates format.
+	<major_axis_radius minor_axis_radius angle center_x center_y 1>.
+	:param square: rects
+	:return: elipses
 	'''
-	pass
+
+	# transform rect representation from [x1,y1,x2,y2] to [h, w, angle, center_x, center_y] elipse cords
+	center_x = (rects[:, 2] + rects[:, 0]) / 2
+	center_y = (rects[:, 3] + rects[:, 1]) / 2
+	w = rects[:, 2] - rects[:, 0]
+	h = (rects[:, 2] - rects[:, 0]) * 1.2
+	angle = np.zeros_like(h)
+
+	major_axis_radius = h / math.sqrt(2)
+	minor_axis_radius = w / math.sqrt(2)
+
+	elipses = np.column_stack((major_axis_radius, minor_axis_radius, angle, center_x, center_y, rects[:,-1]))
+
+	return elipses
 
 def scores_to_boxes(score_per_patch, thres_percentile, h_input, w_input):
 	'''
@@ -47,34 +63,21 @@ def scores_to_boxes(score_per_patch, thres_percentile, h_input, w_input):
 	:return:
 	'''
 	h, w = np.shape(score_per_patch)
-	boxes = np.zeros([h * w, 5])
 
 	# filer by score bigger then percentile
 	m = np.percentile(score_per_patch.flatten(), thres_percentile)
 
 	# Create array that holds the two points represent rectangle - top left and bottom right
 	# Assume the location (i, j) in the output map is the top left corner at the input image at: (2i, 2j)
-	# np.where returns a tupal of indexes 0 dim ix the x ind and dim 1 is y ind
+	# np.where returns a tupal of indexes 0 dim ix the x (row) ind and dim 1 is y ind (col)
 	# top_left_ind.shape = [2, num_of_points]
 
 	# Assume (i, j) is top left corner
-
 	top_left_ind = np.array(np.where(score_per_patch >= m))
 	top_left_ind = top_left_ind * 2
 	bottom_right_ind = top_left_ind + np.full(top_left_ind.shape, 12)
 	filter_scores = score_per_patch[np.where(score_per_patch >= m)]
 	boxes = np.column_stack((top_left_ind.T, bottom_right_ind.T, filter_scores))
-
-	# Assume (i, j) is bottom left corner
-	
-	# bottom_left_ind = np.array(np.where(score_per_patch >= m)) * 2
-	# bottom_right_ind = np.copy(bottom_left_ind)
-	# bottom_right_ind[0] = bottom_left_ind[0] + np.full(bottom_left_ind[0].shape ,12)
-	#
-	# top_left_ind = np.copy(bottom_left_ind)
-	# top_left_ind[1] = bottom_left_ind[1] + np.full(bottom_left_ind[1].shape ,-12)
-	# filter_scores = score_per_patch[np.where(score_per_patch >= m)]
-	# boxes = np.column_stack((top_left_ind.T, bottom_right_ind.T, filter_scores))
 
 	return boxes
 
@@ -112,7 +115,7 @@ def non_maxima_supration(boxes, thres=0.5):
 		pick.append(i)
 		suppress = [last]
 		# loop over all indexes in the indexes list
-		for pos in xrange(0, last):
+		for pos in range(0, last):
 			# grab the current index
 			j = idxs[pos]
 
@@ -128,17 +131,17 @@ def non_maxima_supration(boxes, thres=0.5):
 			w = max(0, xx2 - xx1 + 1)
 			h = max(0, yy2 - yy1 + 1)
 
-			# compute the ratio of overlap between the computed
-			# bounding box and the bounding box in the area list
-			overlap = float(w * h) / area[j]
+			#  compute the IOU between rect I and rect J
+			overlap = float(w * h) / (area[j] + area[i] - w * h)
 
 			# if there is sufficient overlap, suppress the
 			# current bounding box
-			if overlap > thres:
+			if overlap > thres and scores[j] <= scores[i]:
 				suppress.append(pos)
+			elif overlap > thres and scores[j] > scores[i]:
+				del pick[-1]
+				break  # found a rect with a better fit then the one being tested
 
-		# delete all indexes from the index list that are in the
-		# suppression list
 		idxs = np.delete(idxs, suppress)
 
 	# return only the bounding boxes that were picked
@@ -172,6 +175,7 @@ def drawRects(orgImg, rects, numShowRects=100):
 FC_STATE_DICT_PATH = '/Users/royhirsch/Documents/GitHub/DeepLearningCourse/EX2/Q1/model_params_test_loss_0.0813.pt'
 FDDB_IMAGE_ORDER = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX2_data/fddb/FDDB-folds/FDDB-fold-01.txt'
 FDDB_IMAGES_ROOT = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX2_data/fddb/images'
+SCALES_LIST      = [6, 8, 10, 12, 14, 16, 18]
 
 ''' ###################################### MAIN ###################################### '''
 
@@ -179,12 +183,6 @@ FDDB_IMAGES_ROOT = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX
 fc_state_dict = torch.load(FC_STATE_DICT_PATH)
 
 # Convert state_dict of the original FC NN into FCN
-'''
-	How the FC-CNN was calculated ?
-	after pool layer -x.shape: (128, 16, 4, 4)
-	therefore if we chanel size to be 16 we need conv kernel of [output_size ,input_size=4,input_size=4]
-	see: http://cs231n.github.io/convolutional-networks/#convert
-'''
 fcn_state_dict = fc_state_dict.copy()
 fcn_state_dict['conv2.weight'] = fcn_state_dict.pop('fc1.weight').view(16, 16, 4, 4)
 fcn_state_dict['conv2.bias'] = fcn_state_dict.pop('fc1.bias')
@@ -201,41 +199,63 @@ with open(FDDB_IMAGE_ORDER) as images_file:
 	images_list = images_list.split('\n')[:-1]
 
 # Read the images by their order
+print_res_list = []
 for im_name in images_list:
+	print('Process image {}'.format(im_name))
 	full_im_path = os.path.join(FDDB_IMAGES_ROOT, im_name + '.jpg')
 	im = Image.open(full_im_path)
 	h_org, w_org = im.size
 
-	# Pre-process the image
-	# TODO: not sure about the resize (Roy)
-	scale = 16
-	im = transforms.Resize(im.size[1]/scale)(im)
-	h_input, w_input = im.size
-	im_tensor = transforms.ToTensor()(im).view([1, 3, w_input, h_input])
+	scaled_orig_rects = []
+	for scale in SCALES_LIST:
+		scaled_im = transforms.Resize(int(im.size[1]/scale))(im)
+		h_input, w_input = scaled_im.size
 
-	# Evaluate the FCN
-	sigmoid = nn.Sigmoid()
-	output = sigmoid(fcn_net(im_tensor))
+		# Convert gray scale input into 3 channel input
+		if im.layers == 1:
+			scaled_im = np.dstack((scaled_im, scaled_im, scaled_im))
+		im_tensor = transforms.ToTensor()(scaled_im).view([1, 3, w_input, h_input])
 
-	# The score in each patch represent the score to find a face in this patch
-	# class 0 stands for TRUE
-	# Each neuron in score_per_patch has receptive field of 12x12 of original image
-	scores = np.squeeze(output.detach().numpy())[1, :, :]
-	h, w = scores.shape
+		# Evaluate the FCN
+		sigmoid = nn.Sigmoid()
+		output = sigmoid(fcn_net(im_tensor))
 
-	rects = scores_to_boxes(scores, 80, h_input, w_input)
-	filtered_rects = non_maxima_supration(rects, thres=0.5)
+		# The score in each patch represent the score to find a face in this patch
+		# class 0 stands for TRUE
+		# Each neuron in score_per_patch has receptive field of 12x12 of original image
+		scores = np.squeeze(output.detach().numpy())[1, :, :]
+		h, w = scores.shape
 
-	# Helper function
-	drawRects(im, filtered_rects)
+		rects = scores_to_boxes(scores, 60, h_input, w_input)
+		filtered_rects = non_maxima_supration(rects, thres=0.5)
+		scaled_orig_rects.append(np.column_stack((filtered_rects[:, :-1] * scale, filtered_rects[:, -1])))
 
-	# TODO missing: (Roy)
-	#  - multiple scales
-	#  - how to choose final rects
-	#  - how to define number of faces
-	#  - from rect to ellipse cordinates
+	all_rects = np.concatenate(scaled_orig_rects)
 
-	# report results to text file
-	# with open('testDiscROC.txt.txt', 'w') as text_file:
-	# 	text_file.write(im_name)
+	# Maybe another NMS
+	# all_rects = non_maxima_supration(all_rects, thres=0.5)
 
+	elipses = rects_to_elipses(all_rects)
+	print('Num of rects: {}'.format(len(all_rects)))
+
+	# Prepare data to print
+	elipse_str_list = []
+
+	# Convert the elipse coordinated of all the examples to str
+	for num in range(len(elipses)):
+		sample = elipses[num]
+		elipse_str_list.append('{} {} {} {} {}  {}'.format(sample[0], sample[1], sample[2], sample[3], sample[4], sample[5]))
+
+	# Create a list of all the values to print out
+	print_res_list.append([str(im_name), str(len(elipses)), elipse_str_list])
+
+# Report results to text file
+with open('fold-01-out.txt', 'w') as text_file:
+	for sample in print_res_list:
+		text_file.write(sample[0])
+		text_file.write('\n')
+		text_file.write(sample[1])
+		text_file.write('\n')
+		for num in range(len(sample[2])):
+			text_file.write(sample[2][num])
+			text_file.write('\n')
