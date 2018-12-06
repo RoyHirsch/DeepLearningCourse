@@ -10,7 +10,9 @@ import matplotlib.pyplot as plt
 import cv2 as cv2
 import math
 import pickle
-
+import pandas as pd
+from net_24 import load_pascal_to_numpy
+import torch
 ''' ###################################### CLASSES ###################################### '''
 
 class Net(nn.Module):
@@ -54,10 +56,10 @@ def scores_to_boxes(score_per_patch):
 
 	return boxes
 
-FC_STATE_DICT_PATH = '/Users/royhirsch/Documents/GitHub/DeepLearningCourse/EX2/Q1/model_params_test_loss_0.0813.pt'
-FDDB_IMAGE_ORDER = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX2_data/fddb/FDDB-folds/FDDB-fold-01.txt'
-FDDB_IMAGES_ROOT = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX2_data/fddb/images'
-SCALES_LIST      = [10, 12]
+FC_STATE_DICT_PATH = 'C:/Users/dorim/Documents/GitHub/DeepLearningCourse/EX2/Q1/model_params_test_loss_0.0813.pt'
+negative_root = 'C:/Users/dorim/Desktop/DOR/TAU uni/Msc/DL/EX2/EX2_data/VOCdevkit/VOC2007'
+negative_dataframe = load_pascal_to_numpy(negative_root)
+SCALES_LIST      = [8, 10]
 
 ''' ###################################### MAIN ###################################### '''
 
@@ -76,21 +78,31 @@ fcn_net = Net()
 fcn_net.load_state_dict(fcn_state_dict)
 
 # Read the images by their order
+#negative_dataframe = negative_dataframe.iloc[:300,:]
 patches = []
-for im_name in images_iterator:
+for row in negative_dataframe.iterrows():
 	patch_per_img = []
-	print('Process image {}'.format(im_name))
-
+	print('Process image {}'.format(row[1][0]))
+	full_im_path = os.path.join(negative_root +'/JPEGImages', row[1][0])
+	im = Image.open(full_im_path)
+	h_org, w_org = im.size
 	patch_per_scale = []
 	for scale in SCALES_LIST:
 		scaled_im = transforms.Resize(int(im.size[1]/scale))(im)
 		h_input, w_input = scaled_im.size
-		im_tensor = transforms.ToTensor()(scaled_im).view([1, im.layers, w_input, h_input])
 
+		# Convert gray scale input into 3 channel input
+		if im.layers == 1:
+			scaled_im = np.dstack((scaled_im, scaled_im, scaled_im))
+		if row[1][0] == '001557.jpg':
+			print('wait')
+		im_tensor = transforms.ToTensor()(scaled_im).view([1, 3, w_input, h_input])
 		# Evaluate the FCN
+
 		sigmoid = nn.Sigmoid()
 		output = sigmoid(fcn_net(im_tensor))
 		scores = np.squeeze(output.detach().numpy())[1, :, :]
+
 
 		# Get the positive samples
 		pos_rects = scores_to_boxes(scores)
@@ -99,7 +111,7 @@ for im_name in images_iterator:
 		patch_per_img.append(orig_pos_rects.astype(np.int))
 
 	# print('Got {} patches'.format(len(np.array(patch_per_img))))
-	patches.append([im_name, np.concatenate(patch_per_img)])
+	patches.append([row[1][0], np.concatenate(patch_per_img)])
 
 pickle.dump(patches, open(os.path.join(''), 'wb'))
 
