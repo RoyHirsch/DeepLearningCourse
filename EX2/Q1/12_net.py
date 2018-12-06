@@ -19,8 +19,9 @@ filename = 'aflw_12.t7'
 # pascal_path = 'C:/Users/dorim/Desktop/DOR/TAU uni/Msc/DL/EX2/EX2_data/VOCdevkit/VOC2007'
 pascal_path = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/VOCdevkit/VOC2007'
 test_par = 0.1
-batch_size_pos = 32
-batch_size_neg = 96
+dropout_par = 0.25
+batch_size_pos = 16
+batch_size_neg = 64
 n_epoches = 200
 
 ''' ###################################### CLASSES ###################################### '''
@@ -64,17 +65,23 @@ class Net(nn.Module):
         super(Net, self).__init__()
         # [3,3] kernel ,output chanel: 16
         self.conv = nn.Conv2d(3, 16, 3)
+        self.drop2D = nn.Dropout2d(p=dropout_par, inplace=False)
         self.pool = nn.MaxPool2d((3, 3), stride=2)
         self.fc1 = nn.Linear(256, 16)
         self.fc2 = nn.Linear(16, 2)
+        self.relu = nn.ReLU(inplace=True)
+
 
     def forward(self, x):
         x = self.conv(x)
-        x = self.pool(F.relu(x))
+        x = self.drop2D(x)
+        x = self.pool(x)
+        x = self.relu(x)
 
         x = x.view(-1, 256)
 
-        x = F.relu(self.fc1(x))
+        x = self.fc1(x)
+        x = self.relu(x)
         x = self.fc2(x)
         return x
 
@@ -163,13 +170,15 @@ test_loss_total = []
 
 # Main optimization loop:
 for epoch in range(n_epoches):
-    # Because neg_train_loader iterator is smaller - use cycle iterator (Roy)
+
     train_loss_arr = []
+    # Because neg_train_loader iterator is smaller - use cycle iterator (Roy)
     for i, data in enumerate(zip(pos_train_loader, cycle(neg_train_loader)), 0):
         (pos_inputs, pos_labels), (neg_inputs, neg_labels) = data
         inputs, labels = permutate_input_n_labels(pos_inputs, pos_labels, neg_inputs, neg_labels)
         optimizer.zero_grad()
 
+        net.train()
         outputs = net(inputs)
         train_loss_tmp = criterion(outputs, labels)
         train_loss_tmp.backward()
@@ -184,6 +193,8 @@ for epoch in range(n_epoches):
     for data in zip(pos_test_loader, cycle(neg_test_loader)):
         (pos_inputs, pos_labels), (neg_inputs, neg_labels) = data
         inputs, labels = permutate_input_n_labels(pos_inputs, pos_labels, neg_inputs, neg_labels)
+
+        net.eval()
         outputs = net(inputs)
         test_loss_t = criterion(outputs, labels)
         test_loss_arr.append(test_loss_t.item())

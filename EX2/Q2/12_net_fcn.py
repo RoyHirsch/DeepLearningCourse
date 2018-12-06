@@ -20,12 +20,15 @@ class Net(nn.Module):
         self.pool = nn.MaxPool2d((3, 3), stride=2)
         self.conv2 = nn.Conv2d(16, 16, 4)
         self.conv3 = nn.Conv2d(16, 2, 1)
+        self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
         x = self.conv(x)
-        x = self.pool(F.relu(x))        # x.shape = (128, 16, 4, 4)
+        x = self.pool(x)        # x.shape = (128, 16, 4, 4)
+        x = self.relu(x)
 
-        x = F.relu(self.conv2(x))
+        x = self.conv2(x)
+        x = self.relu(x)
         x = self.conv3(x)
         return x
 
@@ -172,7 +175,7 @@ def drawRects(orgImg, rects, numShowRects=100):
 
 ''' ###################################### PARAMETERS ###################################### '''
 
-FC_STATE_DICT_PATH = '/Users/royhirsch/Documents/GitHub/DeepLearningCourse/EX2/Q1/model_params_test_loss_0.0813.pt'
+FC_STATE_DICT_PATH = '/Users/royhirsch/Documents/GitHub/DeepLearningCourse/EX2/Q1/model_params_test_loss_0.074.pt'
 FDDB_IMAGE_ORDER = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX2_data/fddb/FDDB-folds/FDDB-fold-01.txt'
 FDDB_IMAGES_ROOT = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX2_data/fddb/images'
 SCALES_LIST      = [6, 8, 10, 12, 14, 16, 18]
