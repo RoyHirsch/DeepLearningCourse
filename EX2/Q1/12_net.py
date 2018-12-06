@@ -90,6 +90,7 @@ def load_pascal_to_numpy(path):
     no_person = []
     images_no_person = []
     for i in range(person_table.shape[0]):
+        if person_table[i,1] == -1.0:
             no_person.append(int(person_table[i,0]))
     for image_name in images:
         head, tail = os.path.split(image_name)
