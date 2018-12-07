@@ -14,10 +14,11 @@ import matplotlib.pyplot as plt
 
 ''' ###################################### PARAMETERS ###################################### '''
 # aflw_path = 'C:/Users/nimro/Desktop/ex2_local/EX2_data/EX2_data/aflw'
-aflw_path = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX2_data/aflw'
+#aflw_path = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX2_data/aflw'
+aflw_path = 'C:/Users/dorim/Desktop/DOR/TAU uni/Msc/DL/EX2/EX2_data/aflw'
 filename = 'aflw_12.t7'
-# pascal_path = 'C:/Users/dorim/Desktop/DOR/TAU uni/Msc/DL/EX2/EX2_data/VOCdevkit/VOC2007'
-pascal_path = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/VOCdevkit/VOC2007'
+pascal_path = 'C:/Users/dorim/Desktop/DOR/TAU uni/Msc/DL/EX2/EX2_data/VOCdevkit/VOC2007'
+#pascal_path = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/VOCdevkit/VOC2007'
 test_par = 0.1
 dropout_par = 0.25
 batch_size_pos = 16
@@ -30,7 +31,7 @@ class Aflw_loader(Dataset):
     'a labels vector of size num_sampels  and samples a tensor of each'
     def __init__(self, path, filename):
         self.rawdata = torchfile.load(os.path.join(path, filename), force_8bytes_long=True)
-        self.rawdata = self.rawdata.values()
+        self.rawdata = list(self.rawdata.values())
         self.labels = np.ones((np.shape(self.rawdata)[0], 1))
 
     def __len__(self):

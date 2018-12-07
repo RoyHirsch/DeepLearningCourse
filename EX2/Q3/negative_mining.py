@@ -11,7 +11,6 @@ import cv2 as cv2
 import math
 import pickle
 import pandas as pd
-from net_24 import load_pascal_to_numpy
 import torch
 ''' ###################################### CLASSES ###################################### '''
 
@@ -31,6 +30,36 @@ class Net(nn.Module):
         x = F.relu(self.conv2(x))
         x = self.conv3(x)
         return x
+
+
+def load_pascal_to_dataframe(path):
+	'returns pascal images names "filename.jpg" not containing a person as a dataframe'
+	'all labels = 0 , negative'
+	images_path = os.path.join(path, "JPEGImages")
+	images = [os.path.join(images_path, f) for f in os.listdir(images_path)]
+	person_list_path = os.path.join(path, "ImageSets/Main/person_trainval.txt")
+	person_table = np.fromfile(person_list_path, sep=' ').reshape(-1,2)
+	'according to PASCAL VOC 2007 documentation there are three ground truth labels: -1: Negative, 1: Positive, 0:Difficult'
+	no_person = []
+	images_no_person = []
+	for i in range(person_table.shape[0]):
+		if person_table[i,1] == -1.0:
+			no_person.append(int(person_table[i,0]))
+	no_person_filenames = []
+	for image_name in images:
+		head, tail = os.path.split(image_name)
+		image_num = os.path.splitext(tail)[0]
+		'add only the photo names with no person appearing in them'
+		if int(image_num) in no_person:
+			images_no_person.append(image_name)
+			no_person_filenames.append(image_num)
+	num_images = len(images_no_person)
+	pascal_dataframe = []
+	for filepath in images_no_person:
+		head,tail = os.path.split(filepath)
+		pascal_dataframe.append({'image_name':tail,'label':0})
+	pascal_dataframe = pd.DataFrame(pascal_dataframe)
+	return pascal_dataframe
 
 def scores_to_boxes(score_per_patch):
 	'''
@@ -56,10 +85,11 @@ def scores_to_boxes(score_per_patch):
 
 	return boxes
 
-FC_STATE_DICT_PATH = 'C:/Users/dorim/Documents/GitHub/DeepLearningCourse/EX2/Q1/model_params_test_loss_0.0813.pt'
+FC_STATE_DICT_PATH = 'C:/Users/dorim/Documents/GitHub/DeepLearningCourse/EX2/Q1/model_params_test_loss_0.0461.pt'
 negative_root = 'C:/Users/dorim/Desktop/DOR/TAU uni/Msc/DL/EX2/EX2_data/VOCdevkit/VOC2007'
-negative_dataframe = load_pascal_to_numpy(negative_root)
-SCALES_LIST      = [8, 10]
+pickle_path = 'C:/Users/dorim/Documents/GitHub/DeepLearningCourse/EX2/Q3/negative_rects.pkl'
+negative_dataframe = load_pascal_to_dataframe(negative_root)
+SCALES_LIST      = [6,8,10]
 
 ''' ###################################### MAIN ###################################### '''
 
@@ -78,7 +108,6 @@ fcn_net = Net()
 fcn_net.load_state_dict(fcn_state_dict)
 
 # Read the images by their order
-#negative_dataframe = negative_dataframe.iloc[:300,:]
 patches = []
 for row in negative_dataframe.iterrows():
 	patch_per_img = []
@@ -94,26 +123,24 @@ for row in negative_dataframe.iterrows():
 		# Convert gray scale input into 3 channel input
 		if im.layers == 1:
 			scaled_im = np.dstack((scaled_im, scaled_im, scaled_im))
-		if row[1][0] == '001557.jpg':
-			print('wait')
 		im_tensor = transforms.ToTensor()(scaled_im).view([1, 3, w_input, h_input])
 		# Evaluate the FCN
-
-		sigmoid = nn.Sigmoid()
-		output = sigmoid(fcn_net(im_tensor))
-		scores = np.squeeze(output.detach().numpy())[1, :, :]
-
-
+		try:
+			sigmoid = nn.Sigmoid()
+			output = sigmoid(fcn_net(im_tensor))
+			scores = np.squeeze(output.detach().numpy())[1, :, :]
+		except(IndexError,RuntimeError):
+			pass
 		# Get the positive samples
 		pos_rects = scores_to_boxes(scores)
 		orig_pos_rects = pos_rects[:, :-1] * scale
 
 		patch_per_img.append(orig_pos_rects.astype(np.int))
 
-	# print('Got {} patches'.format(len(np.array(patch_per_img))))
+	#print('Got {} patches'.format(len(np.array(patch_per_img))))
 	patches.append([row[1][0], np.concatenate(patch_per_img)])
 
-pickle.dump(patches, open(os.path.join(''), 'wb'))
+pickle.dump(patches, open(os.path.join(pickle_path), 'wb'))
 
 # Return patches - list with a tupel per sampel,
 # each tupel: (image_name, pos_rect)
