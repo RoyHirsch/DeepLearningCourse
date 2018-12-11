@@ -232,6 +232,7 @@ FDDB_IMAGE_folder = 'C:/Users/nimro/Desktop/ex2_local/EX2_data/EX2_data/fddb'
 SCALES_LIST = [6, 8, 10, 12, 14, 16, 18]
 
 net24 = Net24()
+
 if torch.cuda.is_available():
     net24 = net24.cuda()
 
@@ -257,8 +258,8 @@ with open(FDDB_IMAGE_ORDER) as images_file:
     images_list = images_file.read()
     images_list = images_list.split('\n')[:-1]
 
-
 sigmoid = nn.Sigmoid()
+
 # Read the images by their order
 print_res_list = []
 for im_name in images_list:
@@ -278,6 +279,7 @@ for im_name in images_list:
     h_org, w_org = im.size
     image_size_t = torch.Tensor([im.size[0], im.size[1]])
 
+    # detect candidates for faces in different scales
     scaled_orig_rects = []
     for scale in SCALES_LIST:
         dest_size = (image_size_t / scale).round()
@@ -300,11 +302,12 @@ for im_name in images_list:
         # The score in each patch represent the score to find a face in this patch
         # class 0 stands for TRUE
         # Each neuron in score_per_patch has receptive field of 12x12 of original image
+        
         scores = np.squeeze(output.detach().numpy())[1, :, :]
         h, w = scores.shape
 
-        rects = scores_to_boxes(scores, 60, h_input, w_input) #output [N, (x, y, h ,w, score)]
-        # N = rects.shape[0]
+        rects = scores_to_boxes(scores, 60, h_input, w_input) #output [N, 5] each row is (x, y, h ,w, score)
+        # N = number of detections
 
         filtered_rects = non_maxima_supration(rects, thres=0.5)
 
