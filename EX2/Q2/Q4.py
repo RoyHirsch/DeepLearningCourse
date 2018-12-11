@@ -112,6 +112,8 @@ def scores_to_boxes(score_per_patch, thres_percentile, h_input, w_input):
 
 def non_maxima_supration(boxes, thres=0.5):
     '''
+    same as in Q2 - maybe change according to changes there
+
     The output scores image of the backbone NN
     :param score_per_patch: (np.array)
     :param thres_percentile: min value for score to be observed as positive, based on a percentile
@@ -179,6 +181,8 @@ def non_maxima_supration(boxes, thres=0.5):
 
 def drawRects(orgImg, rects, numShowRects=100):
     '''
+    probably un-used here
+
     Helper function to draw rects on image
     :param orgImg: (np.array)
     :param rects: (np.array) shape: [num_rects, x1, y1, x2, y2]
@@ -207,6 +211,8 @@ def get_image_patches(image_tensor, boxes):
     for box in boxes.round().long():
         # index image tensor by y, then x (row, col)
         patch = image_tensor[:, box[1]:box[3], box[0]:box[2]]
+        # if patch.size()[0] == 0:
+        #     patch = image_tensor[:, box[0]:box[2], box[1]:box[3]] # stupit if, should be here, only for debug
         patch = transforms.ToPILImage()(patch) #now patch is a pil image maybe change back to tensor
         patch = transforms.Resize((24, 24))(patch)
         patch = transforms.ToTensor()(patch)
@@ -224,7 +230,7 @@ SCALES_LIST = [6, 8, 10, 12, 14, 16, 18]
 
 net24 = Net24()
 if torch.cuda.is_available():
-	net24 = net24.cuda()
+    net24 = net24.cuda()
 
 fc_state_dict = torch.load(FC_STATE_DICT_PATH)
 fcn_state_dict = fc_state_dict.copy()
@@ -238,7 +244,7 @@ net12 = NetFCN12()
 net12.load_state_dict(fcn_state_dict)
 sigmoid = nn.Sigmoid()
 
-threshold = 0.5 # change later
+threshold = 0.5 # consider change later
 
 ''' ###################################### MAIN ###################################### '''
 
@@ -256,17 +262,30 @@ for im_name in images_list:
     print('Process image {}'.format(im_name))
     full_im_path = os.path.join(FDDB_IMAGES_ROOT, im_name + '.jpg')
     im = Image.open(full_im_path)
-    h_org, w_org = im.size
     image_tensor = transforms.ToTensor()(im)
+
+    # Convert gray scale input into 3 channel input (shape is [1, h, w])
+    if im.layers == 1:
+        im_3_layers = torch.stack((image_tensor, image_tensor, image_tensor), dim=1) # now it is [1, 3, h, w]
+        size_3_layers = im_3_layers.size()
+        im_3_layers = im_3_layers.view(size_3_layers[1], size_3_layers[2], size_3_layers[3])
+        im = transforms.ToPILImage()(im_3_layers)
+        image_tensor = transforms.ToTensor()(im)
+
+    h_org, w_org = im.size
+    image_size_t = torch.Tensor([im.size[0], im.size[1]])
 
     scaled_orig_rects = []
     for scale in SCALES_LIST:
-        scaled_im = transforms.Resize(int(im.size[1]/scale))(im)
+        dest_size = (image_size_t / scale).round()
+        real_scale = image_size_t / dest_size
+        dest_size_lst = list(dest_size.numpy())
+        scaled_im = transforms.Resize(dest_size_lst)(im)
         h_input, w_input = scaled_im.size
 
-        # Convert gray scale input into 3 channel input
-        if im.layers == 1:
-            scaled_im = np.dstack((scaled_im, scaled_im, scaled_im))
+        if any(dest_size < 12):
+            print("image too small for given scale: {}, {}, {}".format(scale, image_size_t, dest_size))
+            continue
 
         im_tensor = transforms.ToTensor()(scaled_im).view([1, 3, w_input, h_input])
 
@@ -286,26 +305,23 @@ for im_name in images_list:
 
         filtered_rects = non_maxima_supration(rects, thres=0.5)
 
-        scaled_orig_rects.append(np.column_stack((filtered_rects[:, :-1] * scale, filtered_rects[:, -1])))
+        scaled_orig_rects.append(np.column_stack((filtered_rects[:, 0:2] * real_scale[0],
+                                                  filtered_rects[:, 2:4] * real_scale[1],
+                                                  filtered_rects[:, -1])))
 
-    all_rects = np.concatenate(scaled_orig_rects)
+    all_rects = np.concatenate(scaled_orig_rects) # there is probably a bug in the rescale
 
     all_rects_tensor = torch.tensor(all_rects) # N rects of different sizes
     patches = get_image_patches(image_tensor, all_rects_tensor)  # want patches of the image to enter the 24net
     # it should be a list of len=N and in each place there is an image patch as tensor
     # of shape (3, 24, 24)
 
-    ''' ######################################  ###################################### '''
-    # we need to think how to rescale the patch from patches to be at the
-    # right size to feet as input to the 24net
-    ''' ######################################  ###################################### '''
-
     patches_batch = torch.stack(patches)
     scores = net24(Variable(patches_batch)) # scores shape = (N, 2)
 
     rows = []
     for i in range(scores.size()[0]):
-        if scores[i][0] < threshold:
+        if scores[i][1] < threshold: # assuming 1 - face and 0 non-face
             rows.append(i)
     all_rects_filtered = np.delete(all_rects, rows, axis=0) #ndarray of (N, 5)
 
@@ -328,7 +344,7 @@ for im_name in images_list:
     print_res_list.append([str(im_name), str(len(elipses)), elipse_str_list])
 
 # Report results to text file
-with open('fold-01-out-after24net.txt', 'w') as text_file:
+with open('fold-01-out-after24net_check.txt', 'w') as text_file:
     for sample in print_res_list:
         text_file.write(sample[0])
         text_file.write('\n')
