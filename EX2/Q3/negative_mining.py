@@ -85,11 +85,11 @@ def scores_to_boxes(score_per_patch):
 
 	return boxes
 
-FC_STATE_DICT_PATH = 'C:/Users/dorim/Documents/GitHub/DeepLearningCourse/EX2/Q1/model_params_test_loss_0.0461.pt'
+FC_STATE_DICT_PATH = 'C:/Users/dorim/Documents/GitHub/DeepLearningCourse/EX2/Q1/model_params_test_loss_0.0427.pt'
 negative_root = 'C:/Users/dorim/Desktop/DOR/TAU uni/Msc/DL/EX2/EX2_data/VOCdevkit/VOC2007'
 pickle_path = 'C:/Users/dorim/Documents/GitHub/DeepLearningCourse/EX2/Q3/negative_rects.pkl'
 negative_dataframe = load_pascal_to_dataframe(negative_root)
-SCALES_LIST      = [6,8,10]
+SCALES_LIST      = [6,8,10,12,14,16,18]
 
 ''' ###################################### MAIN ###################################### '''
 

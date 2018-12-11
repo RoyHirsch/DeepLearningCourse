@@ -24,13 +24,14 @@ negative_rects_pkl = 'C:/Users/dorim/Documents/GitHub/DeepLearningCourse/EX2/Q3/
 #pascal_path = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/VOCdevkit/VOC2007'
 test_par = 0.1
 dropout_par = 0.25
-batch_size_pos = 32
+batch_size_pos = 96
 batch_size_neg = 96
+LR = 0.001
 n_epoches = 200
 
 
-
 ''' ###################################### CLASSES ###################################### '''
+
 
 class Aflw_loader(Dataset):
 	'loads the 24*24 images as a num_sampels * dimension numpy and prepars'
@@ -74,7 +75,7 @@ class mining_loader(Dataset):
 		self.images_root = images_root
 		self.rects = get_rects(self.path_rects)
 
-		self.transform = transforms.Compose([transforms.Resize((24,24)), transforms.ToTensor()])
+		self.transform = transforms.Compose([transforms.Resize((24,24)),transforms.ToTensor()])
 	def __len__(self):
 		return len(self.rects.index)
 
@@ -148,11 +149,15 @@ def permutate_input_n_labels(pos_inputs, pos_labels, neg_inputs, neg_labels):
     :param neg_labels: (torch.tensor)
     :return: shuffled data and labels
     '''
-	merged_inputs = np.vstack((pos_inputs, neg_inputs))
-	merged_labels = np.vstack((pos_labels, neg_labels))
+	merged_inputs = torch.cat((pos_inputs, neg_inputs))
+	merged_labels = torch.cat((pos_labels, neg_labels))
 	inds = list(range(len(merged_labels)))
 	np.random.shuffle(inds)
-	return torch.tensor(merged_inputs[inds, :, :, :]).float(), torch.tensor(merged_labels[inds, :]).flatten().long()
+	if torch.cuda.is_available():
+		return torch.Tensor.cuda(merged_inputs[inds, :, :, :]).float(), torch.Tensor.cuda(merged_labels[inds, :]).flatten().long()
+	else:
+		return torch.tensor(merged_inputs[inds, :, :, :]).float(), torch.tensor(merged_labels[inds, :]).flatten().long()
+
 
 ''' ###################################### MAIN ###################################### '''
 
@@ -168,8 +173,8 @@ pos_train_loader = DataLoader(positive_aflw_24_net, batch_size=batch_size_pos, s
 neg_train_loader = DataLoader(negative_pascal_24_net, batch_size=batch_size_neg, sampler=neg_train_sampler)
 
 #perform test in batches to avoid out of memory error
-pos_test_loader = DataLoader(positive_aflw_24_net, batch_size= round(pos_test_size/20), sampler=pos_test_sampler)
-neg_test_loader = DataLoader(negative_pascal_24_net, batch_size= round(neg_test_size/20), sampler=neg_test_sampler)
+pos_test_loader = DataLoader(positive_aflw_24_net, batch_size= batch_size_pos, sampler=pos_test_sampler)
+neg_test_loader = DataLoader(negative_pascal_24_net, batch_size= batch_size_neg, sampler=neg_test_sampler)
 
 # Create net
 net = Net()
@@ -177,13 +182,16 @@ criterion = nn.CrossEntropyLoss()
 if torch.cuda.is_available():
 	net = net.cuda()
 	criterion = nn.CrossEntropyLoss().cuda()
-optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(net.parameters(), lr=LR)
 
 train_loss_total = []
 test_loss_total = []
+train_accuracy_total = []
+test_accuracy_total = []
 
 for epoch in range(n_epoches):
 	train_loss_arr = []
+	train_accuracy_arr = []
 	# Because neg_train_loader iterator is smaller - use cycle iterator
 	for i, data in enumerate(zip(pos_train_loader, cycle(neg_train_loader)), 0):
 		(pos_inputs, pos_labels), (neg_inputs, neg_labels) = data
@@ -192,6 +200,8 @@ for epoch in range(n_epoches):
 
 		net.train()
 		outputs = net(inputs)
+		preds = torch.argmax(outputs, dim=1)
+		accuracy_per_minibatch = (preds == labels).sum().item() / inputs.size()[0]
 		if torch.cuda.is_available():
 			dtype = torch.cuda.LongTensor
 			labels = torch.autograd.Variable(labels.type(dtype))
@@ -199,29 +209,36 @@ for epoch in range(n_epoches):
 		train_loss_tmp.backward()
 		optimizer.step()
 		train_loss_arr.append(train_loss_tmp.item())
+		train_accuracy_arr.append(accuracy_per_minibatch)
 
 	train_loss_epoch = np.mean(train_loss_arr)
+	train_accuracy_epoch = np.mean(train_accuracy_arr)
 	train_loss_total.append(train_loss_epoch)
-
+	train_accuracy_total.append(train_accuracy_epoch)
 	# Test the model
 	test_loss_arr = []
+	test_acc_arr = []
 	for data in zip(pos_test_loader, cycle(neg_test_loader)):
 		(pos_inputs, pos_labels), (neg_inputs, neg_labels) = data
 		inputs, labels = permutate_input_n_labels(pos_inputs, pos_labels, neg_inputs, neg_labels)
 
 		net.eval()
 		outputs = net(inputs)
+		preds = torch.argmax(outputs, dim=1)
+		accuracy_per_minibatch = (preds == labels).sum().item() / inputs.size()[0]
 		if torch.cuda.is_available():
 			dtype = torch.cuda.LongTensor
 			labels = torch.autograd.Variable(labels.type(dtype))
 		test_loss_t = criterion(outputs, labels)
 		test_loss_arr.append(test_loss_t.item())
-
+		test_acc_arr.append(accuracy_per_minibatch)
 	test_loss_epoch = np.mean(test_loss_arr)
+	test_accuracy_epoch = np.mean(test_acc_arr)
+	test_accuracy_total.append(test_accuracy_epoch)
 	test_loss_total.append(test_loss_epoch)
 	print('\n==> Epoch num {} :'.format(epoch))
-	print('train loss : {0:3.4f}'.format(train_loss_epoch))
-	print('test loss : {0:3.4f}'.format(test_loss_epoch))
+	print('train loss : {0:3.4f} train accuracy: {1:3.4f} '.format(train_loss_epoch,train_accuracy_epoch))
+	print('test loss : {0:3.4f} test accuracy: {1:3.4f} '.format(test_loss_epoch,test_accuracy_epoch))
 
 # Save state_dict
 torch.save(net.state_dict(), 'model_params_test_loss_{}.pt'.format(round(test_loss_epoch,4)))
