@@ -205,15 +205,18 @@ def drawRects(orgImg, rects, numShowRects=100):
     plt.show()
 
 def get_image_patches(image_tensor, boxes):
+    """""
+    gets a full image tensor and candidats for rects in a 2D structures:
+    each row is a candidate and first 4 columns are coordinates and 5th column is the score by the net
+    returns list of size number of rows and in each idx is the patch from the image after scaling it to 24*24
+    """""
     if len(boxes) == 0:
         return []
     patches = []
     for box in boxes.round().long():
-        # index image tensor by y, then x (row, col)
+        # index image tensor by y, then x (row, col) - guess its true
         patch = image_tensor[:, box[1]:box[3], box[0]:box[2]]
-        # if patch.size()[0] == 0:
-        #     patch = image_tensor[:, box[0]:box[2], box[1]:box[3]] # stupit if, should be here, only for debug
-        patch = transforms.ToPILImage()(patch) #now patch is a pil image maybe change back to tensor
+        patch = transforms.ToPILImage()(patch)
         patch = transforms.Resize((24, 24))(patch)
         patch = transforms.ToTensor()(patch)
         patches.append(patch)
