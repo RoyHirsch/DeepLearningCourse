@@ -27,7 +27,7 @@ dropout_par = 0.25
 batch_size_pos = 96
 batch_size_neg = 96
 LR = 0.001
-n_epoches = 200
+n_epoches = 100
 
 
 ''' ###################################### CLASSES ###################################### '''
@@ -252,3 +252,11 @@ plt.xlabel('# Epoch')
 plt.ylabel('Loss')
 plt.show()
 
+plt.figure()
+plt.plot(train_accuracy_total, '-', color='b')
+plt.plot(test_accuracy_total, '--', color='r')
+plt.legend(['train accuracy', 'test accuracy'])
+plt.title('accuracy per epoch graph')
+plt.xlabel('# Epoch')
+plt.ylabel('accuracy')
+plt.show()
