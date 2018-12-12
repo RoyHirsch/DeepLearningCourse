@@ -225,13 +225,18 @@ def get_image_patches(image_tensor, boxes):
 ''' ###################################### PARAMETERS ###################################### '''
 
 FC_STATE_DICT_PATH = 'C:/Users/nimro/Desktop/ex2_local/model_params_test_loss_0.0427.pt'
+net24_STATE_DICT_PATH = 'C:/Users/nimro/Desktop/ex2_local/model_q_3_params_test_loss_0.3459.pt'
+
 FDDB_IMAGE_ORDER = 'C:/Users/nimro/Desktop/ex2_local/EX2_data/EX2_data/fddb/FDDB-folds/FDDB-fold-01.txt'
 FDDB_IMAGES_ROOT = 'C:/Users/nimro/Desktop/ex2_local/EX2_data/EX2_data/fddb/images'
 
 FDDB_IMAGE_folder = 'C:/Users/nimro/Desktop/ex2_local/EX2_data/EX2_data/fddb'
 SCALES_LIST = [6, 8, 10, 12, 14, 16, 18]
 
+net24_state_dict = torch.load(net24_STATE_DICT_PATH)
+
 net24 = Net24()
+net24.load_state_dict(net24_state_dict)
 
 if torch.cuda.is_available():
     net24 = net24.cuda()
@@ -248,7 +253,7 @@ net12 = NetFCN12()
 net12.load_state_dict(fcn_state_dict)
 sigmoid = nn.Sigmoid()
 
-threshold = 0.5 # consider change later
+threshold = 0.7 # consider change later
 
 ''' ###################################### MAIN ###################################### '''
 
@@ -309,11 +314,14 @@ for im_name in images_list:
         rects = scores_to_boxes(scores, 60, h_input, w_input) #output [N, 5] each row is (x, y, h ,w, score)
         # N = number of detections
 
-        filtered_rects = non_maxima_supration(rects, thres=0.5)
+        # this is in comment because we want only global NMS
+        # filtered_rects = non_maxima_supration(rects, thres=0.5)
 
-        scaled_orig_rects.append(np.column_stack((filtered_rects[:, 0:2] * real_scale[0],
-                                                  filtered_rects[:, 2:4] * real_scale[1],
-                                                  filtered_rects[:, -1])))
+        scaled_orig_rects.append(np.column_stack((filtered_rects[:, 0] * real_scale[0],
+                                                  filtered_rects[:, 2] * real_scale[0],
+                                                  filtered_rects[:, 1] * real_scale[1],
+                                                  filtered_rects[:, 3] * real_scale[1],
+                                                  filtered_rects[:, -1]))) #make sure that x is first
 
     all_rects = np.concatenate(scaled_orig_rects) # there is probably a bug in the rescale
 
@@ -332,6 +340,7 @@ for im_name in images_list:
     all_rects_filtered = np.delete(all_rects, rows, axis=0) #ndarray of (N, 5)
 
     all_rects_filtered = non_maxima_supration(all_rects_filtered, thres=0.5) # global nms over all candidates for rects
+    # we should consider a lower threshold for higher recall
 
     # all_rects = non_maxima_supration(all_rects, thres=0.5)
 
