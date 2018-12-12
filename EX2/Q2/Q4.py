@@ -315,13 +315,18 @@ for im_name in images_list:
         # N = number of detections
 
         # this is in comment because we want only global NMS
-        # filtered_rects = non_maxima_supration(rects, thres=0.5)
+        #filtered_rects = non_maxima_supration(rects, thres=0.5)
+        filtered_rects = rects
 
-        scaled_orig_rects.append(np.column_stack((filtered_rects[:, 0] * real_scale[0],
-                                                  filtered_rects[:, 2] * real_scale[0],
-                                                  filtered_rects[:, 1] * real_scale[1],
-                                                  filtered_rects[:, 3] * real_scale[1],
-                                                  filtered_rects[:, -1]))) #make sure that x is first
+        # scaled_orig_rects.append(np.column_stack((filtered_rects[:, 0] * real_scale[1],
+        #                                           filtered_rects[:, 2] * real_scale[1],
+        #                                           filtered_rects[:, 1] * real_scale[0],
+        #                                           filtered_rects[:, 3] * real_scale[0],
+        #                                           filtered_rects[:, -1]))) #make sure that x is first
+
+        scaled_orig_rects.append(np.column_stack((filtered_rects[:, 0:2] * real_scale[0],
+                                                  filtered_rects[:, 2:4] * real_scale[1],
+                                                  filtered_rects[:, -1])))  # make sure that x is first
 
     all_rects = np.concatenate(scaled_orig_rects) # there is probably a bug in the rescale
 
@@ -335,7 +340,7 @@ for im_name in images_list:
 
     rows = []
     for i in range(scores.size()[0]):
-        if scores[i][1] < threshold: # assuming 1 - face and 0 non-face
+        if scores[i][0] < threshold: # assuming 1 - face and 0 non-face
             rows.append(i)
     all_rects_filtered = np.delete(all_rects, rows, axis=0) #ndarray of (N, 5)
 
