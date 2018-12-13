@@ -340,11 +340,12 @@ for im_name in images_list:
 
     rows = []
     for i in range(scores.size()[0]):
-        if scores[i][0] < threshold: # assuming 1 - face and 0 non-face
+        if scores[i][0] >  scores[i][1]: # assuming 1 - face and 0 non-face
             rows.append(i)
     all_rects_filtered = np.delete(all_rects, rows, axis=0) #ndarray of (N, 5)
-
+    # patches__filtered = get_image_patches(image_tensor, torch.tensor(all_rects_filtered))
     all_rects_filtered = non_maxima_supration(all_rects_filtered, thres=0.5) # global nms over all candidates for rects
+    patches__filtered = get_image_patches(image_tensor, torch.tensor(all_rects_filtered))
     # we should consider a lower threshold for higher recall
 
     # all_rects = non_maxima_supration(all_rects, thres=0.5)
