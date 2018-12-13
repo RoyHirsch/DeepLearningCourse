@@ -133,7 +133,7 @@ def non_maxima_supration(boxes, thres=0.5):
     # compute the area of the bounding boxes and sort the bounding
     # boxes by the bottom-right y-coordinate of the bounding box
     area = (x2 - x1 + 1) * (y2 - y1 + 1)
-    idxs = np.argsort(y2)
+    idxs = np.argsort(scores)
     # keep looping while some indexes still remain in the indexes
     # list
     while len(idxs) > 0:
@@ -167,13 +167,22 @@ def non_maxima_supration(boxes, thres=0.5):
 
             # if there is sufficient overlap, suppress the
             # current bounding box
-            if overlap > thres and scores[j] <= scores[i]:
+            if overlap > thres:
                 suppress.append(pos)
-            elif overlap > thres and scores[j] > scores[i]:
-                del pick[-1]
-                break  # found a rect with a better fit then the one being tested
 
+            # delete all indexes from the index list that are in the
+            # suppression list
         idxs = np.delete(idxs, suppress)
+
+        #     # if there is sufficient overlap, suppress the
+        #     # current bounding box
+        #     if overlap > thres and scores[j] <= scores[i]:
+        #         suppress.append(pos)
+        #     elif overlap > thres and scores[j] > scores[i]:
+        #         del pick[-1]
+        #         break  # found a rect with a better fit then the one being tested
+        #
+        # idxs = np.delete(idxs, suppress)
 
     # return only the bounding boxes that were picked
     return boxes[pick]
@@ -252,8 +261,6 @@ fcn_state_dict['conv3.bias'] = fcn_state_dict.pop('fc2.bias')
 net12 = NetFCN12()
 net12.load_state_dict(fcn_state_dict)
 sigmoid = nn.Sigmoid()
-
-threshold = 0.7 # consider change later
 
 ''' ###################################### MAIN ###################################### '''
 
@@ -344,8 +351,8 @@ for im_name in images_list:
             rows.append(i)
     all_rects_filtered = np.delete(all_rects, rows, axis=0) #ndarray of (N, 5)
     # patches__filtered = get_image_patches(image_tensor, torch.tensor(all_rects_filtered))
-    all_rects_filtered = non_maxima_supration(all_rects_filtered, thres=0.5) # global nms over all candidates for rects
-    patches__filtered = get_image_patches(image_tensor, torch.tensor(all_rects_filtered))
+    all_rects_filtered = non_maxima_supration(all_rects_filtered, thres=0.7) # global nms over all candidates for rects
+    # patches__filtered = get_image_patches(image_tensor, torch.tensor(all_rects_filtered))
     # we should consider a lower threshold for higher recall
 
     # all_rects = non_maxima_supration(all_rects, thres=0.5)
@@ -359,13 +366,13 @@ for im_name in images_list:
     # Convert the elipse coordinated of all the examples to str
     for num in range(len(elipses)):
         sample = elipses[num]
-        elipse_str_list.append('{} {} {} {} {}  {}'.format(sample[0], sample[1], sample[2], sample[3], sample[4], sample[5]))
+        elipse_str_list.append('{} {} {} {} {} {}'.format(sample[0], sample[1], sample[2], sample[3], sample[4], sample[5]))
 
     # Create a list of all the values to print out
     print_res_list.append([str(im_name), str(len(elipses)), elipse_str_list])
 
 # Report results to text file
-with open('fold-01-out-after24net_check.txt', 'w') as text_file:
+with open('fold-01-out.txt', 'w') as text_file:
     for sample in print_res_list:
         text_file.write(sample[0])
         text_file.write('\n')
