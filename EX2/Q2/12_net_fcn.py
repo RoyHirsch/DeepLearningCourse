@@ -57,18 +57,17 @@ def rects_to_elipses(rects):
 
 	return elipses
 
-def scores_to_boxes(score_per_patch, thres_percentile, h_input, w_input):
+def scores_to_boxes(score_per_patch, threshold, h_input, w_input):
 	'''
 	Converts output scors from the NN to rects.
 	Convert each cordinate from: [x, y, h, w] to [x1, y1, x2, y2]
 	:param score_per_patch: (np.array)
-	:param thres_percentile: min value for score to be observed as positive, based on a percentile
+	:param threshold: min score (from Sigmoid)
 	:return:
 	'''
 	h, w = np.shape(score_per_patch)
 
 	# filer by score bigger then percentile
-	m = np.percentile(score_per_patch.flatten(), thres_percentile)
 
 	# Create array that holds the two points represent rectangle - top left and bottom right
 	# Assume the location (i, j) in the output map is the top left corner at the input image at: (2i, 2j)
@@ -76,10 +75,10 @@ def scores_to_boxes(score_per_patch, thres_percentile, h_input, w_input):
 	# top_left_ind.shape = [2, num_of_points]
 
 	# Assume (i, j) is top left corner
-	top_left_ind = np.array(np.where(score_per_patch >= m))
+	top_left_ind = np.array(np.where(score_per_patch >= threshold))
 	top_left_ind = top_left_ind * 2
 	bottom_right_ind = top_left_ind + np.full(top_left_ind.shape, 12)
-	filter_scores = score_per_patch[np.where(score_per_patch >= m)]
+	filter_scores = score_per_patch[np.where(score_per_patch >= threshold)]
 	boxes = np.column_stack((top_left_ind.T, bottom_right_ind.T, filter_scores))
 
 	return boxes
@@ -92,45 +91,32 @@ def non_maxima_supration(boxes, thres=0.5):
 	:param thres: threshold for IOU of overlaping rects
 	:return:
 	'''
-	# initialize the list of picked indexes
 	pick = []
 
-	# grab the coordinates of the bounding boxes
 	x1 = boxes[:, 0]
 	y1 = boxes[:, 1]
 	x2 = boxes[:, 2]
 	y2 = boxes[:, 3]
 	scores = boxes[:, 4]
 
-	# compute the area of the bounding boxes and sort the bounding
-	# boxes by the bottom-right y-coordinate of the bounding box
 	area = (x2 - x1 + 1) * (y2 - y1 + 1)
 	idxs = np.argsort(y2)
-	# keep looping while some indexes still remain in the indexes
-	# list
+
 	while len(idxs) > 0:
-		# grab the last index in the indexes list, add the index
-		# value to the list of picked indexes, then initialize
-		# the suppression list (i.e. indexes that will be deleted)
-		# using the last index
+
 		last = len(idxs) - 1
 		i = idxs[last]
 		pick.append(i)
 		suppress = [last]
-		# loop over all indexes in the indexes list
+
 		for pos in range(0, last):
-			# grab the current index
 			j = idxs[pos]
 
-			# find the largest (x, y) coordinates for the start of
-			# the bounding box and the smallest (x, y) coordinates
-			# for the end of the bounding box
 			xx1 = max(x1[i], x1[j])
 			yy1 = max(y1[i], y1[j])
 			xx2 = min(x2[i], x2[j])
 			yy2 = min(y2[i], y2[j])
 
-			# compute the width and height of the bounding box
 			w = max(0, xx2 - xx1 + 1)
 			h = max(0, yy2 - yy1 + 1)
 
@@ -141,9 +127,6 @@ def non_maxima_supration(boxes, thres=0.5):
 			# current bounding box
 			if overlap > thres and scores[j] <= scores[i]:
 				suppress.append(pos)
-			elif overlap > thres and scores[j] > scores[i]:
-				del pick[-1]
-				break  # found a rect with a better fit then the one being tested
 
 		idxs = np.delete(idxs, suppress)
 
@@ -175,10 +158,10 @@ def drawRects(orgImg, rects, numShowRects=100):
 
 ''' ###################################### PARAMETERS ###################################### '''
 
-FC_STATE_DICT_PATH = '/Users/royhirsch/Documents/GitHub/DeepLearningCourse/EX2/Q1/model_params_test_loss_0.074.pt'
+FC_STATE_DICT_PATH = '/Users/royhirsch/Documents/GitHub/DeepLearningCourse/EX2/Q1/model_params_test_loss_0.0427.pt'
 FDDB_IMAGE_ORDER = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX2_data/fddb/FDDB-folds/FDDB-fold-01.txt'
 FDDB_IMAGES_ROOT = '/Users/royhirsch/Documents/Study/Current/DeepLearning/Ex2/EX2_data/fddb/images'
-SCALES_LIST      = [6, 8, 10, 12, 14, 16, 18]
+SCALES_LIST      = [3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 18, 19, 20]
 
 ''' ###################################### MAIN ###################################### '''
 
@@ -203,6 +186,7 @@ with open(FDDB_IMAGE_ORDER) as images_file:
 
 # Read the images by their order
 print_res_list = []
+sigmoid = nn.Sigmoid()
 for im_name in images_list:
 	print('Process image {}'.format(im_name))
 	full_im_path = os.path.join(FDDB_IMAGES_ROOT, im_name + '.jpg')
@@ -220,7 +204,6 @@ for im_name in images_list:
 		im_tensor = transforms.ToTensor()(scaled_im).view([1, 3, w_input, h_input])
 
 		# Evaluate the FCN
-		sigmoid = nn.Sigmoid()
 		output = sigmoid(fcn_net(im_tensor))
 
 		# The score in each patch represent the score to find a face in this patch
@@ -229,14 +212,11 @@ for im_name in images_list:
 		scores = np.squeeze(output.detach().numpy())[1, :, :]
 		h, w = scores.shape
 
-		rects = scores_to_boxes(scores, 60, h_input, w_input)
+		rects = scores_to_boxes(scores, 0.1, h_input, w_input)
 		filtered_rects = non_maxima_supration(rects, thres=0.5)
 		scaled_orig_rects.append(np.column_stack((filtered_rects[:, :-1] * scale, filtered_rects[:, -1])))
 
 	all_rects = np.concatenate(scaled_orig_rects)
-
-	# Maybe another NMS
-	# all_rects = non_maxima_supration(all_rects, thres=0.5)
 
 	elipses = rects_to_elipses(all_rects)
 	print('Num of rects: {}'.format(len(all_rects)))
@@ -247,7 +227,7 @@ for im_name in images_list:
 	# Convert the elipse coordinated of all the examples to str
 	for num in range(len(elipses)):
 		sample = elipses[num]
-		elipse_str_list.append('{} {} {} {} {}  {}'.format(sample[0], sample[1], sample[2], sample[3], sample[4], sample[5]))
+		elipse_str_list.append('{} {} {} {} {} {}'.format(sample[0], sample[1], sample[2], sample[3], sample[4], sample[5]))
 
 	# Create a list of all the values to print out
 	print_res_list.append([str(im_name), str(len(elipses)), elipse_str_list])
