@@ -366,7 +366,18 @@ for im_name in images_list:
     # Convert the elipse coordinated of all the examples to str
     for num in range(len(elipses)):
         sample = elipses[num]
-        elipse_str_list.append('{} {} {} {} {} {}'.format(sample[0], sample[1], sample[2], sample[3], sample[4], sample[5]))
+        for i in range(6):
+            if round(sample[i]) > 99.5:
+                sample[i] = float("%.4f" % sample[i])
+            if round(sample[i]) > 9.5:
+                sample[i] = float("%.5f" % sample[i])
+            if round(sample[i]) < 9.5:
+                sample[i] = float("%.6f" % sample[i])
+        elipse_str_list.append(
+            '{} {} {} {} {} {}'.format(sample[0], sample[1], sample[2],
+                                       float(round(sample[3])),
+                                       float(round(sample[4])),
+                                       sample[5]))
 
     # Create a list of all the values to print out
     print_res_list.append([str(im_name), str(len(elipses)), elipse_str_list])
@@ -381,3 +392,23 @@ with open('fold-01-out.txt', 'w') as text_file:
         for num in range(len(sample[2])):
             text_file.write(sample[2][num])
             text_file.write('\n')
+
+
+#     # Convert the elipse coordinated of all the examples to str
+#     for num in range(len(elipses)):
+#         sample = elipses[num]
+#         elipse_str_list.append('{} {} {} {} {} {}'.format(sample[0], sample[1], sample[2], sample[3], sample[4], sample[5]))
+#
+#     # Create a list of all the values to print out
+#     print_res_list.append([str(im_name), str(len(elipses)), elipse_str_list])
+#
+# # Report results to text file
+# with open('fold-01-out.txt', 'w') as text_file:
+#     for sample in print_res_list:
+#         text_file.write(sample[0])
+#         text_file.write('\n')
+#         text_file.write(sample[1])
+#         text_file.write('\n')
+#         for num in range(len(sample[2])):
+#             text_file.write(sample[2][num])
+#             text_file.write('\n')
