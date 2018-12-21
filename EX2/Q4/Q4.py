@@ -240,7 +240,7 @@ FDDB_IMAGE_ORDER = 'C:/Users/nimro/Desktop/ex2_local/EX2_data/EX2_data/fddb/FDDB
 FDDB_IMAGES_ROOT = 'C:/Users/nimro/Desktop/ex2_local/EX2_data/EX2_data/fddb/images'
 
 FDDB_IMAGE_folder = 'C:/Users/nimro/Desktop/ex2_local/EX2_data/EX2_data/fddb'
-SCALES_LIST = [6, 8, 10, 12, 14, 16, 18]
+SCALES_LIST = [i for i in range(4,26,2)]
 
 net24_state_dict = torch.load(net24_STATE_DICT_PATH)
 
@@ -318,7 +318,7 @@ for im_name in images_list:
         scores = np.squeeze(output.detach().numpy())[1, :, :]
         h, w = scores.shape
 
-        rects = scores_to_boxes(scores, 60, h_input, w_input) #output [N, 5] each row is (x, y, h ,w, score)
+        rects = scores_to_boxes(scores, 40, h_input, w_input) #output [N, 5] each row is (x, y, h ,w, score)
         # N = number of detections
 
         # this is in comment because we want only global NMS
@@ -351,7 +351,7 @@ for im_name in images_list:
             rows.append(i)
     all_rects_filtered = np.delete(all_rects, rows, axis=0) #ndarray of (N, 5)
     # patches__filtered = get_image_patches(image_tensor, torch.tensor(all_rects_filtered))
-    all_rects_filtered = non_maxima_supration(all_rects_filtered, thres=0.7) # global nms over all candidates for rects
+    all_rects_filtered = non_maxima_supration(all_rects_filtered, thres=0.75) # global nms over all candidates for rects
     # patches__filtered = get_image_patches(image_tensor, torch.tensor(all_rects_filtered))
     # we should consider a lower threshold for higher recall
 
