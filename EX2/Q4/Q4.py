@@ -318,7 +318,7 @@ for im_name in images_list:
         scores = np.squeeze(output.detach().numpy())[1, :, :]
         h, w = scores.shape
 
-        rects = scores_to_boxes(scores, 40, h_input, w_input) #output [N, 5] each row is (x, y, h ,w, score)
+        rects = scores_to_boxes(scores, 10, h_input, w_input) #output [N, 5] each row is (x, y, h ,w, score)
         # N = number of detections
 
         # this is in comment because we want only global NMS
